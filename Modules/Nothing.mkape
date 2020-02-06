@@ -1,0 +1,15 @@
+Description: 'Do nothing'
+Category: ""
+Author: Brian Maloney
+Version: 1
+Id: 5ab9c07c-a12e-448a-9f92-dcc9e5ae58f1
+ExportFormat: ""
+Processors:
+    -
+        Executable: C:\Windows\System32\cmd.exe
+        CommandLine: /c
+        ExportFormat: ""
+
+######
+# Does nothing
+######

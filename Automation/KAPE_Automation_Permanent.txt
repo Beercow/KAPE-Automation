@@ -1,0 +1,81 @@
+$text = {
+param
+(
+    [Parameter(Mandatory)]
+    [string]
+    $TIName,
+
+    [Parameter(Mandatory)]
+    [string]
+    $TIFileName,
+    
+    [Parameter(Mandatory)]
+    [string]
+    $Kape
+)
+Start-Transcript -Path "$($Env:SystemDrive)\Temp\KAPE-transcript.txt"
+Write-Host "starting Script"
+function Send-ChangeNotification {
+    $EmailBody = "
+        KAPE results can be viewed at:`n`r
+        <SERVER_NAME>$linkpath
+
+    "
+
+    $Params = @{
+        'From' = ''
+        'Subject' = ""
+        'To' = ''
+        'SmtpServer' = ''
+        'Body' = $EmailBody
+    }
+    Send-MailMessage @Params
+} 
+$TIName=$TIName -replace '"', ""
+$fileEvent = $TIName
+$filePath = $TIName.Substring(0, $TIName.lastIndexOf('\')) + "\"
+$zipSearch = $TIFileName.split('_ConsoleLog_SFTP')[0]
+$zipFile = Get-ChildItem $filePath | Where-Object {$_.Name -like "*"+$zipSearch+"*zip"}
+$zipDir = $zipFile.BaseName
+$zipName = $zipFile.Name
+[void] (New-Item -Path $filePath$zipDir -ItemType Directory -Force)
+$Shell = new-object -com Shell.Application
+$Shell.Namespace("$filePath$zipDir").copyhere($Shell.NameSpace("$filePath$zipName").Items(),0x14)
+$module = (Get-ChildItem $filePath$zipDir"\mout\--module").Name
+$vdhxFile = $filePath+$zipDir+"\"+$zipDir+".vhdx"
+Mount-VHD -Path $vdhxFile -Passthru
+Dismount-VHD -Path $vdhxFile
+$DriveLetter = (Mount-VHD -Path $vdhxFile -ReadOnly -Passthru | Get-Disk | Get-Partition | Get-Volume).DriveLetter
+& $Kape --msource $DriveLetter":\" --mdest $filePath$zipDir"\mout" --module $module --debug --trace
+Dismount-VHD -Path $vdhxFile
+Remove-Item $vdhxFile
+$asset = $asset = $zipDir.split('_')[1]
+$LinkPath = $filePath+$zipDir+"\mout" -replace ':', '$'
+Send-ChangeNotification
+Stop-Transcript -WarningAction Ignore
+}
+
+$PScommand = [Convert]::ToBase64String([System.Text.Encoding]::Unicode.GetBytes($text))
+
+$fname = "KAPE Automation Filter"
+
+$cname = "KAPE Automation Consumer"
+
+$CommandLineTemplate = "cmd /c echo %TargetInstance.Name%◙%TargetInstance.FileName%◙<PATH_TO_KAPE_EXE>| powershell -noprofile -encodedcommand $PScommand"
+
+$query = "Select * from __InstanceCreationEvent within 30 where targetInstance isa 'Cim_Datafile' AND TargetInstance.Drive = '<DRIVE_LETTER_TO_MONITOR>' AND TargetInstance.Path LIKE '%KAPE_data_push_%' AND TargetInstance.FileName LIKE '%_ConsoleLog_SFTP%' AND TargetInstance.Extension = 'txt'"
+
+$WMIEventFilter = Set-WmiInstance -Class __EventFilter -Namespace "root\subscription" -Arguments @{Name=$fname;EventNameSpace="root\cimv2";QueryLanguage="WQL";Query=$query}
+
+$WMIEventConsumer = Set-WmiInstance -Class CommandLineEventConsumer -Namespace "root\subscription" -Arguments @{Name=$cname;CommandLineTemplate=$CommandLineTemplate}
+
+Set-WmiInstance -Class __FilterToConsumerBinding -Namespace "root\subscription" -Arguments @{Filter=$WMIEventFilter;Consumer=$WMIEventConsumer} | out-null
+
+# Removing WMI Subscriptions using Remove-WMIObject
+# Event Filter
+Get-WMIObject -Namespace root\Subscription -Class __EventFilter -Filter "Name='KAPE Automation Filter'" | Remove-WmiObject -Verbose
+# Event Consumer
+Get-WMIObject -Namespace root\Subscription -Class CommandLineEventConsumer -Filter "Name='KAPE Automation Consumer'" | Remove-WmiObject -Verbose
+ 
+# Binding
+Get-WMIObject -Namespace root\Subscription -Class __FilterToConsumerBinding -Filter "__Path LIKE '%KAPE%'" | Remove-WmiObject -Verbose

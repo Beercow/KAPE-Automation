@@ -1,0 +1,13 @@
+Description: Memory
+Author: Brian Maloney
+Version: 1
+Id: cac3822d-d778-488a-af5c-95c225883b9a
+RecreateDirectories: true
+Targets:
+    -
+        Name: Memory
+        Category: Memory
+        Path: C:\Windows\System32\ntoskrnl.exe
+        IsDirectory: false
+        Recursive: false
+        Comment: ""
