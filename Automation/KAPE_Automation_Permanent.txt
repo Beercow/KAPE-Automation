@@ -70,7 +70,7 @@ $cname = "KAPE Automation Consumer"
 
 $CommandLineTemplate = "cmd /c echo %TargetInstance.Name%◙%TargetInstance.FileName%◙<path_to_kape.exe>| powershell -noprofile -encodedcommand $PScommand"
 
-$query = "Select * from __InstanceCreationEvent within 30 where targetInstance isa 'Cim_Datafile' AND TargetInstance.Drive = 'D:' AND TargetInstance.Path LIKE '%KAPE_data_push_%' AND TargetInstance.FileName LIKE '%_ConsoleLog_SFTP%' AND TargetInstance.Extension = 'txt'"
+$query = "Select * from __InstanceCreationEvent within 30 where targetInstance isa 'Cim_Datafile' AND TargetInstance.Drive = '<Drive_Letter_To_Monitor>' AND TargetInstance.Path LIKE '%KAPE_data_push_%' AND TargetInstance.FileName LIKE '%_ConsoleLog_SFTP%' AND TargetInstance.Extension = 'txt'"
 
 $WMIEventFilter = Set-WmiInstance -Class __EventFilter -Namespace "root\subscription" -Arguments @{Name=$fname;EventNameSpace="root\cimv2";QueryLanguage="WQL";Query=$query}
 
