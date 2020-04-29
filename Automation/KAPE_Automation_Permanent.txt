@@ -18,18 +18,22 @@ Write-Host "starting Script"
 function Send-ChangeNotification {
     $EmailBody = "
         KAPE results can be viewed at:`n`r
-        <SERVER_NAME>$linkpath
+        $linkpath
 
     "
 
     $Params = @{
-        'From' = ''
-        'Subject' = ""
-        'To' = ''
-        'SmtpServer' = ''
+        'From' = '<from_address>'
+        'Subject' = "Collection Complete for $asset"
+        'To' = '<to_address>'
+        'SMTPServer' = "<smtpserver>"
+        'Port' = "<port_number>"
         'Body' = $EmailBody
     }
-    Send-MailMessage @Params
+    $userPassword = ''
+    $userPassword = ConvertTo-SecureString -String $userPassword -AsPlainText -Force
+    $mycreds = New-Object System.Management.Automation.PSCredential ("<user_name>", $userPassword)
+    Send-MailMessage @Params -UseSsl -Credential $mycreds
 } 
 $TIName=$TIName -replace '"', ""
 $fileEvent = $TIName
@@ -42,15 +46,18 @@ $zipName = $zipFile.Name
 $Shell = new-object -com Shell.Application
 $Shell.Namespace("$filePath$zipDir").copyhere($Shell.NameSpace("$filePath$zipName").Items(),0x14)
 $module = (Get-ChildItem $filePath$zipDir"\mout\--module").Name
+$mountOut = $filePath+$zipDir+"\mount.vhdx.txt"
 $vdhxFile = $filePath+$zipDir+"\"+$zipDir+".vhdx"
-Mount-VHD -Path $vdhxFile -Passthru
-Dismount-VHD -Path $vdhxFile
-$DriveLetter = (Mount-VHD -Path $vdhxFile -ReadOnly -Passthru | Get-Disk | Get-Partition | Get-Volume).DriveLetter
+$diff = $vdhxFile+".diff"
+$aim = "<path_to_aim_cli>"
+start-process -FilePath $aim -ArgumentList "/filename=$vdhxFile /writeoverlay=$diff /mount /background" -NoNewWindow -RedirectStandardOutput $mountOut
+$DriveLetter = Get-Volume | Where-Object {$_.FileSystemLabel -like "KAPE (" + $zipDir.substring(0,13) + ":" + $zipDir.substring(13,2) + ":" + $zipDir.substring(15,2) + ")"} |ForEach-Object {$_.DriveLetter}
 & $Kape --msource $DriveLetter":\" --mdest $filePath$zipDir"\mout" --module $module --debug --trace
-Dismount-VHD -Path $vdhxFile
-Remove-Item $vdhxFile
+$mount = gc $mountOut | Select-String '/dismount.*' -AllMatches | ForEach-Object {$_.Matches} | ForEach-Object {$_.Groups[0].Value}
+start-process -FilePath $aim -ArgumentList "$mount" -NoNewWindow -wait
+Remove-Item $filePath$zipDir"\*.vhdx*"
 $asset = $asset = $zipDir.split('_')[1]
-$LinkPath = $filePath+$zipDir+"\mout" -replace ':', '$'
+$LinkPath = $filePath+$zipDir+"\mout"
 Send-ChangeNotification
 Stop-Transcript -WarningAction Ignore
 }
@@ -61,9 +68,9 @@ $fname = "KAPE Automation Filter"
 
 $cname = "KAPE Automation Consumer"
 
-$CommandLineTemplate = "cmd /c echo %TargetInstance.Name%◙%TargetInstance.FileName%◙<PATH_TO_KAPE_EXE>| powershell -noprofile -encodedcommand $PScommand"
+$CommandLineTemplate = "cmd /c echo %TargetInstance.Name%◙%TargetInstance.FileName%◙<path_to_kape.exe>| powershell -noprofile -encodedcommand $PScommand"
 
-$query = "Select * from __InstanceCreationEvent within 30 where targetInstance isa 'Cim_Datafile' AND TargetInstance.Drive = '<DRIVE_LETTER_TO_MONITOR>' AND TargetInstance.Path LIKE '%KAPE_data_push_%' AND TargetInstance.FileName LIKE '%_ConsoleLog_SFTP%' AND TargetInstance.Extension = 'txt'"
+$query = "Select * from __InstanceCreationEvent within 30 where targetInstance isa 'Cim_Datafile' AND TargetInstance.Drive = 'D:' AND TargetInstance.Path LIKE '%KAPE_data_push_%' AND TargetInstance.FileName LIKE '%_ConsoleLog_SFTP%' AND TargetInstance.Extension = 'txt'"
 
 $WMIEventFilter = Set-WmiInstance -Class __EventFilter -Namespace "root\subscription" -Arguments @{Name=$fname;EventNameSpace="root\cimv2";QueryLanguage="WQL";Query=$query}
 
