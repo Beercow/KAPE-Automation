@@ -7,10 +7,5 @@ ExportFormat: ""
 Processors:
     -
         Executable: C:\Windows\System32\cmd.exe
-        CommandLine: /c copy NUL %destinationDirectory%\%module% 
+        CommandLine: /c copy NUL %destinationDirectory%\"%module%" & echo | set /p=%mvar% > %destinationDirectory%\"%module%"
         ExportFormat: ""
-
-######
-# Usage:
-#   --module KAPE_Automation -mvars module:<module name you want to run>
-######
