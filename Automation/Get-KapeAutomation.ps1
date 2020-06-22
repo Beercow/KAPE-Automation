@@ -243,7 +243,7 @@ $vdhxFile = $filePath+$zipDir+"\"+$zipDir+".vhdx"
 Mount-DiskImage -ImagePath $vdhxFile -Passthru
 $DriveLetter = (Get-DiskImage -ImagePath $vdhxFile | Get-Disk | Get-Partition | Get-Volume).DriveLetter+":\"
 $mdest = $filePath+$zipDir+"\mout"
-start-process -FilePath $Kape -ArgumentList "--msource $DriveLetter --mdest $mdest --mflush --module $module --mvar $mvar" -NoNewWindow -wait
+start-process -FilePath $Kape -ArgumentList "--msource $DriveLetter --mdest $mdest --mflush --module $module --mvars $mvar" -NoNewWindow -wait
 Dismount-DiskImage -ImagePath $vdhxFile
 Remove-Item $vdhxFile
 $asset = $zipDir.split('_')[1]
