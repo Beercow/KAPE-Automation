@@ -303,4 +303,4 @@ Write-Host -NoNewLine 'Press any key to continue...';
 $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown');
 Stop-Transcript -WarningAction Ignore
 
-# Restart-Computer 
+Restart-Computer 
